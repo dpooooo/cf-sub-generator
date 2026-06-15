@@ -1,0 +1,14 @@
+{
+  "name": "cf-sub-generator-vps",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Fixed Cloudflare preferred IP subscription generator for VPS deployment",
+  "type": "module",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

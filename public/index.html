@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>固定订阅生成器</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="masthead">
+        <div>
+          <p class="eyebrow">Cloudflare Preferred IP Subscription</p>
+          <h1>固定订阅生成器</h1>
+          <p>保存自建节点和优选 IP 规则后，下方订阅链接固定不变；客户端刷新时自动接入最新优选 IP。</p>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="section-title">
+          <div>
+            <h2>订阅链接</h2>
+            <p>保存配置后可直接复制到客户端，链接地址不会随机变化。</p>
+          </div>
+          <button id="generateButton" type="button">生成订阅链接</button>
+        </div>
+
+        <div class="sub-grid">
+          <article class="sub-card">
+            <div class="sub-icon">🔗</div>
+            <div>
+              <h3>自动识别</h3>
+              <p>适合支持自动识别的客户端</p>
+            </div>
+            <input id="autoLink" readonly />
+            <button class="copy-link" data-link="autoLink" type="button">复制</button>
+            <button class="qr-link" data-link="autoLink" type="button">二维码</button>
+          </article>
+
+          <article class="sub-card">
+            <div class="sub-icon">V</div>
+            <div>
+              <h3>V2rayN</h3>
+              <p>适用于 V2rayN / v2rayNG</p>
+            </div>
+            <input id="v2raynLink" readonly />
+            <button class="copy-link" data-link="v2raynLink" type="button">复制</button>
+            <button class="qr-link" data-link="v2raynLink" type="button">二维码</button>
+          </article>
+
+          <article class="sub-card">
+            <div class="sub-icon">C</div>
+            <div>
+              <h3>Clash</h3>
+              <p>适用于 Clash / Mihomo / Clash Verge</p>
+            </div>
+            <input id="clashLink" readonly />
+            <button class="copy-link" data-link="clashLink" type="button">复制</button>
+            <button class="qr-link" data-link="clashLink" type="button">二维码</button>
+          </article>
+
+          <article class="sub-card">
+            <div class="sub-icon">🚀</div>
+            <div>
+              <h3>Shadowrocket</h3>
+              <p>适用于 iPhone / iPad 小火箭</p>
+            </div>
+            <input id="shadowrocketLink" readonly />
+            <button class="copy-link" data-link="shadowrocketLink" type="button">复制</button>
+            <button class="qr-link" data-link="shadowrocketLink" type="button">二维码</button>
+          </article>
+
+          <article class="sub-card wide-card">
+            <div class="sub-icon">S</div>
+            <div>
+              <h3>Surge</h3>
+              <p>适用于 Surge Profile 导入</p>
+            </div>
+            <input id="surgeLink" readonly />
+            <button class="copy-link" data-link="surgeLink" type="button">复制</button>
+            <button class="qr-link" data-link="surgeLink" type="button">二维码</button>
+          </article>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="grid">
+          <label class="wide">
+            <span>自建节点</span>
+            <textarea id="nodeLinks" rows="12" placeholder="vmess://...&#10;vless://...&#10;trojan://..."></textarea>
+          </label>
+
+          <div class="stack">
+            <label>
+              <span>优选 IP 模式</span>
+              <select id="preferredMode">
+                <option value="auto">自动接入优选 IP 源</option>
+                <option value="manual">手动填写优选 IP</option>
+              </select>
+            </label>
+            <label>
+              <span>优选 IP 源</span>
+              <select id="preferredIpSource">
+                <option value="vps789-list">VPS789 优选</option>
+                <option value="vps789">VPS789 API</option>
+                <option value="uouin">uouin</option>
+              </select>
+            </label>
+            <label>
+              <span>自动取前 N 个</span>
+              <input id="preferredIpLimit" type="number" min="1" max="200" value="20" />
+            </label>
+            <label>
+              <span>备注前缀</span>
+              <input id="namePrefix" type="text" value="CF" />
+            </label>
+            <label class="check">
+              <input id="keepOriginalHost" type="checkbox" checked />
+              <span>保留原节点 Host / SNI</span>
+            </label>
+          </div>
+
+          <label class="wide">
+            <span>手动优选 IP</span>
+            <textarea id="preferredIps" rows="6" placeholder="仅在手动模式下使用，例如：&#10;104.18.39.150:443#VPS789-1"></textarea>
+          </label>
+        </div>
+
+        <div class="actions">
+          <button id="saveButton" type="button">保存配置</button>
+          <button id="previewButton" type="button">预览生成结果</button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="section-title">
+          <div>
+            <h2>预览</h2>
+            <p id="statusText">等待配置</p>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>名称</th>
+                <th>协议</th>
+                <th>优选地址</th>
+                <th>端口</th>
+                <th>Host</th>
+                <th>SNI</th>
+              </tr>
+            </thead>
+            <tbody id="previewBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <dialog id="qrDialog">
+      <div class="qr-head">
+        <strong>订阅二维码</strong>
+        <button id="closeQrButton" type="button">关闭</button>
+      </div>
+      <img id="qrImage" alt="订阅二维码" />
+      <input id="qrText" readonly />
+    </dialog>
+
+    <div id="toast" class="toast"></div>
+    <script src="./app.js"></script>
+  </body>
+</html>
