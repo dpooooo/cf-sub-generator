@@ -85,9 +85,17 @@ SUB_ACCESS_TOKEN=
 
 建议安装 Node.js 18 或更高版本。
 
-### 2. 上传项目
+### 2. 从 GitHub 获取项目
 
-把本项目上传到服务器，例如：
+在宝塔终端或 SSH 中执行：
+
+```bash
+cd /www/wwwroot
+git clone https://github.com/dpooooo/cf-sub-generator.git
+cd cf-sub-generator
+```
+
+项目目录为：
 
 ```text
 /www/wwwroot/cf-sub-generator
@@ -102,6 +110,12 @@ public/
 data/
 package.json
 .env.example
+```
+
+以后更新代码时，在项目目录执行：
+
+```bash
+git pull
 ```
 
 ### 3. 创建 .env
