@@ -57,6 +57,7 @@ HOST=127.0.0.1
 PORT=5176
 IP_SOURCE_BASE=http://127.0.0.1:5173
 DATA_DIR=./data
+ADMIN_TOKEN=
 SUB_ACCESS_TOKEN=
 ```
 
@@ -66,6 +67,7 @@ SUB_ACCESS_TOKEN=
 - `PORT`：订阅生成器端口，默认 `5176`。
 - `IP_SOURCE_BASE`：优选 IP 源服务地址，例如同机部署时为 `http://127.0.0.1:5173`。
 - `DATA_DIR`：配置存储目录，默认 `./data`。
+- `ADMIN_TOKEN`：管理接口访问令牌。强烈建议设置，用于保护自建节点配置。
 - `SUB_ACCESS_TOKEN`：可选访问令牌。留空表示订阅链接无需 token。
 
 ## 宝塔面板部署
@@ -133,10 +135,12 @@ HOST=127.0.0.1
 PORT=5176
 IP_SOURCE_BASE=http://127.0.0.1:5173
 DATA_DIR=./data
+ADMIN_TOKEN=换成一串随机字符
 SUB_ACCESS_TOKEN=
 ```
 
 如果优选 IP 源服务部署在别的域名或端口，把 `IP_SOURCE_BASE` 改成对应地址。
+`ADMIN_TOKEN` 设置后，页面里的“管理 Token”需要填写同一串令牌，才能读取、保存和预览配置。
 
 ### 4. 安装依赖
 
@@ -168,7 +172,7 @@ Node 版本：18+
 启动后先确认本机端口可用：
 
 ```bash
-curl http://127.0.0.1:5176/api/profile/default
+curl -H "x-admin-token: 你的ADMIN_TOKEN" http://127.0.0.1:5176/api/profile/default
 ```
 
 返回 `ok: true` 即表示服务正常。
@@ -199,12 +203,31 @@ https://sub.example.com/
 打开页面后：
 
 1. 粘贴自建节点。
-2. 选择优选 IP 源。
-3. 设置自动取前 N 个 IP。
-4. 点击“生成订阅链接”。
-5. 复制对应客户端订阅链接。
+2. 如果设置了 `ADMIN_TOKEN`，在“管理 Token”中填入令牌。
+3. 选择优选 IP 源。
+4. 设置自动取前 N 个 IP。
+5. 点击“生成订阅链接”。
+6. 复制对应客户端订阅链接。
 
 ## 常见问题
+
+### 如何保护管理页面和节点配置
+
+设置 `.env`：
+
+```env
+ADMIN_TOKEN=换成一串随机字符
+```
+
+设置后，以下管理接口都需要携带 `x-admin-token` 请求头：
+
+```text
+/api/profile/default
+/api/preview/default
+/api/preferred-ips
+```
+
+浏览器页面中填写“管理 Token”即可。不要把 `ADMIN_TOKEN` 提交到 GitHub，项目已经通过 `.gitignore` 排除了 `.env`。
 
 ### 页面能打开，但预览失败
 

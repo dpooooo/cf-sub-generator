@@ -27,7 +27,7 @@
 
         <div class="sub-grid">
           <article class="sub-card">
-            <div class="sub-icon">🔗</div>
+            <div class="sub-icon">L</div>
             <div>
               <h3>自动识别</h3>
               <p>适合支持自动识别的客户端</p>
@@ -60,7 +60,7 @@
           </article>
 
           <article class="sub-card">
-            <div class="sub-icon">🚀</div>
+            <div class="sub-icon">R</div>
             <div>
               <h3>Shadowrocket</h3>
               <p>适用于 iPhone / iPad 小火箭</p>
@@ -84,6 +84,24 @@
       </section>
 
       <section class="panel">
+        <div class="section-title">
+          <div>
+            <h2>管理配置</h2>
+            <p>如果服务器设置了 ADMIN_TOKEN，读取和保存配置时需要填写这里。</p>
+          </div>
+        </div>
+
+        <div class="admin-row">
+          <label>
+            <span>管理 Token</span>
+            <input id="adminToken" type="password" autocomplete="current-password" placeholder="ADMIN_TOKEN" />
+          </label>
+          <label class="check remember-check">
+            <input id="rememberAdminToken" type="checkbox" />
+            <span>仅保存在当前浏览器</span>
+          </label>
+        </div>
+
         <div class="grid">
           <label class="wide">
             <span>自建节点</span>

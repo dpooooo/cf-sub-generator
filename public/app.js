@@ -1,4 +1,6 @@
 const els = {
+  adminToken: document.querySelector("#adminToken"),
+  rememberAdminToken: document.querySelector("#rememberAdminToken"),
   nodeLinks: document.querySelector("#nodeLinks"),
   preferredMode: document.querySelector("#preferredMode"),
   preferredIpSource: document.querySelector("#preferredIpSource"),
@@ -31,6 +33,19 @@ function showToast(message) {
   els.toast.classList.add("show");
   window.clearTimeout(showToast.timer);
   showToast.timer = window.setTimeout(() => els.toast.classList.remove("show"), 1800);
+}
+
+function adminHeaders(extra = {}) {
+  const token = els.adminToken.value.trim();
+  return token ? { ...extra, "x-admin-token": token } : extra;
+}
+
+function rememberTokenIfNeeded() {
+  if (els.rememberAdminToken.checked) {
+    localStorage.setItem("cfSubAdminToken", els.adminToken.value.trim());
+  } else {
+    localStorage.removeItem("cfSubAdminToken");
+  }
 }
 
 function profileFromForm() {
@@ -67,24 +82,34 @@ function fillSubscriptionLinks() {
   }
 }
 
+async function parseJsonResponse(response) {
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || data.ok === false) {
+    throw new Error(data.error || `请求失败：${response.status}`);
+  }
+  return data;
+}
+
 async function loadProfile() {
-  const response = await fetch("/api/profile/default");
-  const data = await response.json();
+  const response = await fetch("/api/profile/default", {
+    headers: adminHeaders()
+  });
+  const data = await parseJsonResponse(response);
   if (data.ok) fillForm(data.profile);
   fillSubscriptionLinks();
 }
 
 async function saveProfile({ quiet = false } = {}) {
+  rememberTokenIfNeeded();
   els.saveButton.disabled = true;
   if (els.generateButton) els.generateButton.disabled = true;
   try {
     const response = await fetch("/api/profile/default", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: adminHeaders({ "content-type": "application/json" }),
       body: JSON.stringify(profileFromForm())
     });
-    const data = await response.json();
-    if (!data.ok) throw new Error(data.error || "保存失败");
+    const data = await parseJsonResponse(response);
     fillSubscriptionLinks();
     if (!quiet) showToast("配置已保存，订阅链接已生成");
     return data.profile;
@@ -118,9 +143,10 @@ async function preview() {
   els.previewButton.disabled = true;
   els.statusText.textContent = "生成预览中";
   try {
-    const response = await fetch("/api/preview/default");
-    const data = await response.json();
-    if (!data.ok) throw new Error(data.error || "预览失败");
+    const response = await fetch("/api/preview/default", {
+      headers: adminHeaders()
+    });
+    const data = await parseJsonResponse(response);
     renderPreview(data.preview || []);
     els.statusText.textContent = `原始节点 ${data.counts.baseNodes} 个，优选 IP ${data.counts.preferredEndpoints} 个，输出 ${data.counts.outputNodes} 个`;
     showToast("预览已生成");
@@ -155,10 +181,21 @@ function escapeHtml(value) {
     .replaceAll("'", "&#39;");
 }
 
+const savedToken = localStorage.getItem("cfSubAdminToken") || "";
+if (savedToken) {
+  els.adminToken.value = savedToken;
+  els.rememberAdminToken.checked = true;
+}
+
 els.saveButton.addEventListener("click", () => saveProfile());
 els.generateButton.addEventListener("click", () => saveProfile());
 els.previewButton.addEventListener("click", preview);
 els.closeQrButton.addEventListener("click", () => els.qrDialog.close());
+els.adminToken.addEventListener("change", () => {
+  rememberTokenIfNeeded();
+  loadProfile().catch((error) => showToast(error.message || "配置加载失败"));
+});
+els.rememberAdminToken.addEventListener("change", rememberTokenIfNeeded);
 
 document.querySelectorAll(".copy-link").forEach((button) => {
   button.addEventListener("click", () => copyInputValue(button.dataset.link));
@@ -168,4 +205,5 @@ document.querySelectorAll(".qr-link").forEach((button) => {
   button.addEventListener("click", () => openQr(button.dataset.link));
 });
 
+fillSubscriptionLinks();
 loadProfile().catch((error) => showToast(error.message || "配置加载失败"));

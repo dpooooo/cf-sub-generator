@@ -21,6 +21,7 @@ const PROFILE_FILE = path.join(DATA_DIR, "profiles.json");
 const PUBLIC_DIR = path.join(__dirname, "public");
 const IP_SOURCE_BASE = process.env.IP_SOURCE_BASE || "http://127.0.0.1:5173";
 const SUB_ACCESS_TOKEN = process.env.SUB_ACCESS_TOKEN || "";
+const ADMIN_TOKEN = process.env.ADMIN_TOKEN || "";
 
 const mimeTypes = {
   ".html": "text/html; charset=utf-8",
@@ -53,7 +54,7 @@ function send(res, status, body, type = "text/plain; charset=utf-8") {
     "Cache-Control": "no-store",
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-    "Access-Control-Allow-Headers": "content-type"
+    "Access-Control-Allow-Headers": "content-type,x-admin-token"
   });
   res.end(body);
 }
@@ -104,6 +105,22 @@ function validateToken(url) {
   return url.searchParams.get("token") === SUB_ACCESS_TOKEN;
 }
 
+function validateAdmin(req, url) {
+  if (!ADMIN_TOKEN) return true;
+  const headerToken = req.headers["x-admin-token"];
+  return headerToken === ADMIN_TOKEN || url.searchParams.get("admin_token") === ADMIN_TOKEN;
+}
+
+function requireAdmin(req, res, url) {
+  if (validateAdmin(req, url)) return true;
+  json(res, 401, {
+    ok: false,
+    error: "Admin token required",
+    code: "ADMIN_TOKEN_REQUIRED"
+  });
+  return false;
+}
+
 async function readRequestJson(req) {
   const chunks = [];
   for await (const chunk of req) chunks.push(chunk);
@@ -111,6 +128,8 @@ async function readRequestJson(req) {
 }
 
 async function handleApi(req, res, url) {
+  if (!requireAdmin(req, res, url)) return;
+
   const profileMatch = url.pathname.match(/^\/api\/profile\/([^/]+)$/);
   if (profileMatch && req.method === "GET") {
     const profile = await getProfile(profileMatch[1]);
