@@ -11,6 +11,8 @@ const els = {
   saveButton: document.querySelector("#saveButton"),
   previewButton: document.querySelector("#previewButton"),
   generateButton: document.querySelector("#generateButton"),
+  runProbeButton: document.querySelector("#runProbeButton"),
+  probeStatus: document.querySelector("#probeStatus"),
   previewBody: document.querySelector("#previewBody"),
   statusText: document.querySelector("#statusText"),
   toast: document.querySelector("#toast"),
@@ -97,6 +99,49 @@ async function loadProfile() {
   const data = await parseJsonResponse(response);
   if (data.ok) fillForm(data.profile);
   fillSubscriptionLinks();
+}
+
+function renderProbeStatus(probe) {
+  if (!probe.enabled) {
+    els.probeStatus.textContent = "未启用";
+    return;
+  }
+
+  if (!probe.hasCache) {
+    els.probeStatus.textContent = "已启用，暂无缓存";
+    return;
+  }
+
+  const time = probe.generatedAt ? new Date(probe.generatedAt).toLocaleString() : "-";
+  els.probeStatus.textContent = `${time}，可用 ${probe.usableCount}/${probe.testedCount}`;
+}
+
+async function loadProbeStatus() {
+  const response = await fetch("/api/probe/status", {
+    headers: adminHeaders()
+  });
+  const data = await parseJsonResponse(response);
+  renderProbeStatus(data.probe);
+}
+
+async function runProbe() {
+  rememberTokenIfNeeded();
+  els.runProbeButton.disabled = true;
+  els.probeStatus.textContent = "实测中，请稍候";
+  try {
+    const response = await fetch("/api/probe/run", {
+      method: "POST",
+      headers: adminHeaders()
+    });
+    const data = await parseJsonResponse(response);
+    renderProbeStatus(data.probe);
+    showToast("实测缓存已更新");
+  } catch (error) {
+    showToast(error.message || "实测失败");
+    await loadProbeStatus().catch(() => {});
+  } finally {
+    els.runProbeButton.disabled = false;
+  }
 }
 
 async function saveProfile({ quiet = false } = {}) {
@@ -190,10 +235,12 @@ if (savedToken) {
 els.saveButton.addEventListener("click", () => saveProfile());
 els.generateButton.addEventListener("click", () => saveProfile());
 els.previewButton.addEventListener("click", preview);
+els.runProbeButton.addEventListener("click", runProbe);
 els.closeQrButton.addEventListener("click", () => els.qrDialog.close());
 els.adminToken.addEventListener("change", () => {
   rememberTokenIfNeeded();
   loadProfile().catch((error) => showToast(error.message || "配置加载失败"));
+  loadProbeStatus().catch(() => {});
 });
 els.rememberAdminToken.addEventListener("change", rememberTokenIfNeeded);
 
@@ -207,3 +254,4 @@ document.querySelectorAll(".qr-link").forEach((button) => {
 
 fillSubscriptionLinks();
 loadProfile().catch((error) => showToast(error.message || "配置加载失败"));
+loadProbeStatus().catch(() => {});
