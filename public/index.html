@@ -27,58 +27,78 @@
 
         <div class="sub-grid">
           <article class="sub-card">
-            <div class="sub-icon">L</div>
-            <div>
-              <h3>自动识别</h3>
-              <p>适合支持自动识别的客户端</p>
+            <div class="sub-card-head">
+              <div class="sub-icon">L</div>
+              <div>
+                <h3>自动识别</h3>
+                <p>通用订阅</p>
+              </div>
             </div>
-            <input id="autoLink" readonly />
-            <button class="copy-link" data-link="autoLink" type="button">复制</button>
-            <button class="qr-link" data-link="autoLink" type="button">二维码</button>
+            <div class="link-row">
+              <input id="autoLink" readonly />
+              <button class="copy-link" data-link="autoLink" type="button">复制</button>
+              <button class="qr-link" data-link="autoLink" type="button">二维码</button>
+            </div>
           </article>
 
           <article class="sub-card">
-            <div class="sub-icon">V</div>
-            <div>
-              <h3>V2rayN</h3>
-              <p>适用于 V2rayN / v2rayNG</p>
+            <div class="sub-card-head">
+              <div class="sub-icon">V</div>
+              <div>
+                <h3>V2rayN</h3>
+                <p>V2rayN / v2rayNG</p>
+              </div>
             </div>
-            <input id="v2raynLink" readonly />
-            <button class="copy-link" data-link="v2raynLink" type="button">复制</button>
-            <button class="qr-link" data-link="v2raynLink" type="button">二维码</button>
+            <div class="link-row">
+              <input id="v2raynLink" readonly />
+              <button class="copy-link" data-link="v2raynLink" type="button">复制</button>
+              <button class="qr-link" data-link="v2raynLink" type="button">二维码</button>
+            </div>
           </article>
 
           <article class="sub-card">
-            <div class="sub-icon">C</div>
-            <div>
-              <h3>Clash</h3>
-              <p>适用于 Clash / Mihomo / Clash Verge</p>
+            <div class="sub-card-head">
+              <div class="sub-icon">C</div>
+              <div>
+                <h3>Clash</h3>
+                <p>Clash / Mihomo / Verge</p>
+              </div>
             </div>
-            <input id="clashLink" readonly />
-            <button class="copy-link" data-link="clashLink" type="button">复制</button>
-            <button class="qr-link" data-link="clashLink" type="button">二维码</button>
+            <div class="link-row">
+              <input id="clashLink" readonly />
+              <button class="copy-link" data-link="clashLink" type="button">复制</button>
+              <button class="qr-link" data-link="clashLink" type="button">二维码</button>
+            </div>
           </article>
 
           <article class="sub-card">
-            <div class="sub-icon">R</div>
-            <div>
-              <h3>Shadowrocket</h3>
-              <p>适用于 iPhone / iPad 小火箭</p>
+            <div class="sub-card-head">
+              <div class="sub-icon">R</div>
+              <div>
+                <h3>Shadowrocket</h3>
+                <p>iPhone / iPad</p>
+              </div>
             </div>
-            <input id="shadowrocketLink" readonly />
-            <button class="copy-link" data-link="shadowrocketLink" type="button">复制</button>
-            <button class="qr-link" data-link="shadowrocketLink" type="button">二维码</button>
+            <div class="link-row">
+              <input id="shadowrocketLink" readonly />
+              <button class="copy-link" data-link="shadowrocketLink" type="button">复制</button>
+              <button class="qr-link" data-link="shadowrocketLink" type="button">二维码</button>
+            </div>
           </article>
 
           <article class="sub-card wide-card">
-            <div class="sub-icon">S</div>
-            <div>
-              <h3>Surge</h3>
-              <p>适用于 Surge Profile 导入</p>
+            <div class="sub-card-head">
+              <div class="sub-icon">S</div>
+              <div>
+                <h3>Surge</h3>
+                <p>Surge Profile</p>
+              </div>
             </div>
-            <input id="surgeLink" readonly />
-            <button class="copy-link" data-link="surgeLink" type="button">复制</button>
-            <button class="qr-link" data-link="surgeLink" type="button">二维码</button>
+            <div class="link-row">
+              <input id="surgeLink" readonly />
+              <button class="copy-link" data-link="surgeLink" type="button">复制</button>
+              <button class="qr-link" data-link="surgeLink" type="button">二维码</button>
+            </div>
           </article>
         </div>
       </section>
@@ -91,24 +111,23 @@
           </div>
         </div>
 
-        <div class="admin-row">
-          <label>
-            <span>管理 Token</span>
-            <input id="adminToken" type="password" autocomplete="current-password" placeholder="ADMIN_TOKEN" />
-          </label>
-          <label class="check remember-check">
-            <input id="rememberAdminToken" type="checkbox" />
-            <span>仅保存在当前浏览器</span>
-          </label>
-        </div>
+        <div class="settings-layout">
+          <div class="form-main">
+            <label>
+              <span>管理 Token</span>
+              <input id="adminToken" type="password" autocomplete="current-password" placeholder="ADMIN_TOKEN" />
+            </label>
+            <label class="check remember-check">
+              <input id="rememberAdminToken" type="checkbox" />
+              <span>仅保存在当前浏览器</span>
+            </label>
+            <label>
+              <span>自建节点</span>
+              <textarea id="nodeLinks" rows="12" placeholder="vmess://...&#10;vless://...&#10;trojan://..."></textarea>
+            </label>
+          </div>
 
-        <div class="grid">
-          <label class="wide">
-            <span>自建节点</span>
-            <textarea id="nodeLinks" rows="12" placeholder="vmess://...&#10;vless://...&#10;trojan://..."></textarea>
-          </label>
-
-          <div class="stack">
+          <div class="form-side">
             <label>
               <span>优选 IP 模式</span>
               <select id="preferredMode">
@@ -138,7 +157,7 @@
             </label>
           </div>
 
-          <label class="wide">
+          <label class="manual-ip-field">
             <span>手动优选 IP</span>
             <textarea id="preferredIps" rows="6" placeholder="仅在手动模式下使用，例如：&#10;104.18.39.150:443#VPS789-1"></textarea>
           </label>
