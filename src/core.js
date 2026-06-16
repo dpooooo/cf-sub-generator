@@ -144,9 +144,7 @@ function normalizeLineGroup(line) {
 }
 
 function candidateLabel(group, candidate) {
-  const latency = Number.isFinite(candidate.latency) ? `${candidate.latency.toFixed(0)}ms` : "";
-  const loss = Number.isFinite(candidate.loss) ? `${candidate.loss.toFixed(2).replace(/\.?0+$/, "")}%` : "";
-  return [group, latency, loss].filter(Boolean).join("-");
+  return group || "";
 }
 
 function compareCandidate(a, b) {
@@ -214,6 +212,7 @@ function selectBalancedCandidates(items, limit) {
   const selected = [];
   const selectedHosts = new Set();
   const cursors = new Map(groups.map(([name]) => [name, 0]));
+  const groupOrder = new Map(groups.map(([name], index) => [name, index]));
 
   while (selected.length < limit) {
     let addedInRound = false;
@@ -241,7 +240,11 @@ function selectBalancedCandidates(items, limit) {
     if (!addedInRound) break;
   }
 
-  return selected;
+  return selected.sort((a, b) => {
+    const groupDelta = (groupOrder.get(a.group) ?? 99) - (groupOrder.get(b.group) ?? 99);
+    if (groupDelta !== 0) return groupDelta;
+    return compareCandidate(a, b);
+  });
 }
 
 async function fetchJson(url) {
