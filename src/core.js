@@ -124,6 +124,126 @@ export function endpointText(item) {
   return `${host.includes(":") ? `[${host}]` : host}:${port}`;
 }
 
+function isIpv4(host) {
+  const parts = String(host || "").trim().split(".");
+  return parts.length === 4 && parts.every((part) => /^\d+$/.test(part) && Number(part) >= 0 && Number(part) <= 255);
+}
+
+function finiteNumber(value, fallback = Number.POSITIVE_INFINITY) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+}
+
+function normalizeLineGroup(line) {
+  const value = String(line || "");
+  if (value.includes("电信") || /\bCT\b/i.test(value)) return "电信";
+  if (value.includes("联通") || /\bCU\b/i.test(value)) return "联通";
+  if (value.includes("移动") || /\bCM\b/i.test(value)) return "移动";
+  if (value.includes("综合") || /all|avg|榜单/i.test(value)) return "综合";
+  return "综合";
+}
+
+function candidateLabel(group, candidate) {
+  const latency = Number.isFinite(candidate.latency) ? `${candidate.latency.toFixed(0)}ms` : "";
+  const loss = Number.isFinite(candidate.loss) ? `${candidate.loss.toFixed(2).replace(/\.?0+$/, "")}%` : "";
+  return [group, latency, loss].filter(Boolean).join("-");
+}
+
+function compareCandidate(a, b) {
+  const lossDelta = finiteNumber(a.loss) - finiteNumber(b.loss);
+  if (lossDelta !== 0) return lossDelta;
+
+  const latencyDelta = finiteNumber(a.latency) - finiteNumber(b.latency);
+  if (latencyDelta !== 0) return latencyDelta;
+
+  return finiteNumber(a.score) - finiteNumber(b.score);
+}
+
+function addCandidate(groups, group, item, metrics) {
+  const host = item.ip || item.host;
+  if (!isIpv4(host)) return;
+
+  const candidate = {
+    host,
+    port: item.port || 443,
+    group,
+    line: item.line,
+    latency: finiteNumber(metrics.latency),
+    loss: finiteNumber(metrics.loss),
+    score: finiteNumber(item.score),
+    sourceItem: item
+  };
+
+  if (!groups.has(group)) groups.set(group, []);
+  groups.get(group).push(candidate);
+}
+
+function buildCandidateGroups(items) {
+  const groups = new Map();
+
+  for (const item of items) {
+    const hasCarrierMetrics =
+      item.dxLatency !== undefined ||
+      item.ltLatency !== undefined ||
+      item.ydLatency !== undefined ||
+      item.dxLoss !== undefined ||
+      item.ltLoss !== undefined ||
+      item.ydLoss !== undefined;
+
+    if (hasCarrierMetrics) {
+      addCandidate(groups, "电信", item, { latency: item.dxLatency, loss: item.dxLoss });
+      addCandidate(groups, "联通", item, { latency: item.ltLatency, loss: item.ltLoss });
+      addCandidate(groups, "移动", item, { latency: item.ydLatency, loss: item.ydLoss });
+      addCandidate(groups, "综合", item, { latency: item.latency, loss: item.loss });
+      continue;
+    }
+
+    const group = normalizeLineGroup(item.line);
+    addCandidate(groups, group, item, { latency: item.latency, loss: item.loss });
+  }
+
+  const orderedGroups = ["电信", "联通", "移动", "综合"]
+    .map((name) => [name, (groups.get(name) || []).sort(compareCandidate)])
+    .filter(([, candidates]) => candidates.length);
+
+  return orderedGroups;
+}
+
+function selectBalancedCandidates(items, limit) {
+  const groups = buildCandidateGroups(items);
+  const selected = [];
+  const selectedHosts = new Set();
+  const cursors = new Map(groups.map(([name]) => [name, 0]));
+
+  while (selected.length < limit) {
+    let addedInRound = false;
+
+    for (const [group, candidates] of groups) {
+      if (selected.length >= limit) break;
+
+      let cursor = cursors.get(group) || 0;
+      while (cursor < candidates.length && selectedHosts.has(candidates[cursor].host)) {
+        cursor += 1;
+      }
+
+      if (cursor >= candidates.length) {
+        cursors.set(group, cursor);
+        continue;
+      }
+
+      const candidate = candidates[cursor];
+      selected.push(candidate);
+      selectedHosts.add(candidate.host);
+      cursors.set(group, cursor + 1);
+      addedInRound = true;
+    }
+
+    if (!addedInRound) break;
+  }
+
+  return selected;
+}
+
 async function fetchJson(url) {
   const response = await fetch(url, { headers: { Accept: "application/json" } });
   if (!response.ok) throw new Error(`HTTP ${response.status}: ${url}`);
@@ -141,13 +261,11 @@ export async function loadPreferredEndpoints(profile, options = {}) {
   const payload = await fetchJson(`${ipSourceBase}/api/cloudflare?source=${encodeURIComponent(source)}`);
   const items = Array.isArray(payload.items) ? payload.items : [];
 
-  return items.slice(0, limit).map((item, index) => {
-    const latency = Number.isFinite(Number(item.latency)) ? `${Number(item.latency).toFixed(0)}ms` : "";
-    const labelParts = [item.line, latency].filter(Boolean);
+  return selectBalancedCandidates(items, limit).map((candidate, index) => {
     return {
-      host: item.ip,
-      port: item.port || 443,
-      label: labelParts.length ? labelParts.join("-") : `${source}-${index + 1}`
+      host: candidate.host,
+      port: candidate.port,
+      label: candidateLabel(candidate.group, candidate) || `${source}-${index + 1}`
     };
   });
 }
