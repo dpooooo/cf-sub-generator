@@ -76,12 +76,6 @@ IP_SOURCE_BASE=http://127.0.0.1:5173
 DATA_DIR=./data
 ADMIN_TOKEN=
 SUB_ACCESS_TOKEN=
-IP_PROBE_ENABLED=false
-IP_PROBE_PORT=443
-IP_PROBE_COUNT=3
-IP_PROBE_TIMEOUT=1200
-IP_PROBE_CANDIDATE_LIMIT=120
-IP_PROBE_CONCURRENCY=20
 ```
 
 说明：
@@ -92,10 +86,6 @@ IP_PROBE_CONCURRENCY=20
 - `DATA_DIR`：配置存储目录，默认 `./data`。
 - `ADMIN_TOKEN`：管理接口访问令牌。强烈建议设置，用于保护自建节点配置。
 - `SUB_ACCESS_TOKEN`：可选访问令牌。留空表示订阅链接无需 token。
-- `IP_PROBE_ENABLED`：是否启用本机 TCP 实测缓存。
-- `IP_PROBE_CANDIDATE_LIMIT`：每次实测的候选 IP 数量。
-- `IP_PROBE_COUNT`：每个 IP 测试次数。
-- `IP_PROBE_TIMEOUT`：单次 TCP 连接超时时间，单位毫秒。
 
 ## 宝塔面板部署
 
@@ -164,12 +154,6 @@ IP_SOURCE_BASE=http://127.0.0.1:5173
 DATA_DIR=./data
 ADMIN_TOKEN=换成一串随机字符
 SUB_ACCESS_TOKEN=
-IP_PROBE_ENABLED=true
-IP_PROBE_PORT=443
-IP_PROBE_COUNT=3
-IP_PROBE_TIMEOUT=1200
-IP_PROBE_CANDIDATE_LIMIT=120
-IP_PROBE_CONCURRENCY=20
 ```
 
 如果优选 IP 源服务部署在别的域名或端口，把 `IP_SOURCE_BASE` 改成对应地址。
@@ -241,34 +225,6 @@ https://sub.example.com/
 4. 设置自动取前 N 个 IP。
 5. 点击“生成订阅链接”。
 6. 复制对应客户端订阅链接。
-
-### 8. 配置宝塔计划任务实测 IP
-
-启用 `IP_PROBE_ENABLED=true` 后，可以让宝塔每天自动实测 1-2 次优选 IP。
-
-宝塔进入：
-
-```text
-计划任务 -> 添加任务 -> Shell脚本
-```
-
-每天一次可以选凌晨，例如 `04:00`。每天两次可以再加一个 `16:00`。
-
-脚本内容：
-
-```bash
-curl -sS -X POST \
-  -H "x-admin-token: 你的ADMIN_TOKEN" \
-  http://127.0.0.1:5176/api/probe/run
-```
-
-实测结果会保存到：
-
-```text
-data/ip-probe-cache.json
-```
-
-客户端刷新订阅时，如果实测缓存存在且来源匹配，会优先使用缓存中的实测延迟和失败率排序；如果没有缓存，则自动回退到优选 IP 源的原始数据。
 
 ## 常见问题
 

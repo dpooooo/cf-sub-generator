@@ -253,14 +253,17 @@ async function fetchJson(url) {
   return response.json();
 }
 
-export async function fetchPreferredItems(profile, options = {}) {
+export async function loadPreferredEndpoints(profile, options = {}) {
+  if (profile.preferredMode === "manual") {
+    return parsePreferredEndpoints(profile.preferredIps);
+  }
+
   const ipSourceBase = options.ipSourceBase || "http://127.0.0.1:5173";
   const source = profile.preferredIpSource || "vps789-list";
+  const limit = Math.max(1, Math.min(Number(profile.preferredIpLimit || 20), 200));
   const payload = await fetchJson(`${ipSourceBase}/api/cloudflare?source=${encodeURIComponent(source)}`);
-  return Array.isArray(payload.items) ? payload.items : [];
-}
+  const items = Array.isArray(payload.items) ? payload.items : [];
 
-export function selectPreferredEndpointsFromItems(items, limit, source = "preferred") {
   return selectBalancedCandidates(items, limit).map((candidate, index) => {
     return {
       host: candidate.host,
@@ -268,20 +271,6 @@ export function selectPreferredEndpointsFromItems(items, limit, source = "prefer
       label: candidateLabel(candidate.group, candidate) || `${source}-${index + 1}`
     };
   });
-}
-
-export async function loadPreferredEndpoints(profile, options = {}) {
-  if (profile.preferredMode === "manual") {
-    return parsePreferredEndpoints(profile.preferredIps);
-  }
-
-  const source = profile.preferredIpSource || "vps789-list";
-  const limit = Math.max(1, Math.min(Number(profile.preferredIpLimit || 20), 200));
-  const items = Array.isArray(options.probeItems) && options.probeItems.length
-    ? options.probeItems
-    : await fetchPreferredItems(profile, options);
-
-  return selectPreferredEndpointsFromItems(items, limit, source);
 }
 
 export function buildNodes(baseNodes, endpoints, options) {

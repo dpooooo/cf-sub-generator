@@ -1,6 +1,5 @@
 node_modules/
 .env
 data/profiles.json
-data/ip-probe-cache.json
 data/*.db
 *.log

@@ -9,7 +9,6 @@ import {
   loadPreferredEndpoints,
   renderSubscription
 } from "./src/core.js";
-import { probeConfigFromEnv, runIpProbe } from "./src/probe.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -19,12 +18,10 @@ const PORT = Number(process.env.PORT || 5176);
 const HOST = process.env.HOST || "127.0.0.1";
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "data");
 const PROFILE_FILE = path.join(DATA_DIR, "profiles.json");
-const PROBE_CACHE_FILE = path.join(DATA_DIR, "ip-probe-cache.json");
 const PUBLIC_DIR = path.join(__dirname, "public");
 const IP_SOURCE_BASE = process.env.IP_SOURCE_BASE || "http://127.0.0.1:5173";
 const SUB_ACCESS_TOKEN = process.env.SUB_ACCESS_TOKEN || "";
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || "";
-const IP_PROBE_CONFIG = probeConfigFromEnv(process.env);
 
 const mimeTypes = {
   ".html": "text/html; charset=utf-8",
@@ -79,41 +76,6 @@ async function readProfiles() {
 async function writeProfiles(profiles) {
   await fs.mkdir(DATA_DIR, { recursive: true });
   await fs.writeFile(PROFILE_FILE, JSON.stringify(profiles, null, 2), "utf8");
-}
-
-async function readProbeCache() {
-  try {
-    const raw = await fs.readFile(PROBE_CACHE_FILE, "utf8");
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
-}
-
-async function writeProbeCache(cache) {
-  await fs.mkdir(DATA_DIR, { recursive: true });
-  await fs.writeFile(PROBE_CACHE_FILE, JSON.stringify(cache, null, 2), "utf8");
-}
-
-async function probeItemsForProfile(profile) {
-  if (!IP_PROBE_CONFIG.enabled || profile.preferredMode === "manual") return null;
-  const cache = await readProbeCache();
-  if (!cache || !Array.isArray(cache.items) || !cache.items.length) return null;
-  if (cache.source !== (profile.preferredIpSource || "vps789-list")) return null;
-  return cache.items;
-}
-
-function probeStatus(cache) {
-  return {
-    enabled: IP_PROBE_CONFIG.enabled,
-    config: IP_PROBE_CONFIG,
-    hasCache: Boolean(cache),
-    generatedAt: cache?.generatedAt || null,
-    source: cache?.source || null,
-    candidateCount: cache?.candidateCount || 0,
-    testedCount: cache?.testedCount || 0,
-    usableCount: cache?.usableCount || 0
-  };
 }
 
 async function getProfile(id) {
@@ -185,23 +147,15 @@ async function handleApi(req, res, url) {
     const source = url.searchParams.get("source") || "vps789-list";
     const limit = Number(url.searchParams.get("limit") || 20);
     const profile = { ...defaultProfile, preferredIpSource: source, preferredIpLimit: limit };
-    const probeItems = await probeItemsForProfile(profile);
-    const endpoints = await loadPreferredEndpoints(profile, { ipSourceBase: IP_SOURCE_BASE, probeItems });
-    return json(res, 200, {
-      ok: true,
-      source,
-      probeCacheUsed: Boolean(probeItems),
-      endpoints: endpoints.map(endpointText)
-    });
+    const endpoints = await loadPreferredEndpoints(profile, { ipSourceBase: IP_SOURCE_BASE });
+    return json(res, 200, { ok: true, source, endpoints: endpoints.map(endpointText) });
   }
 
   if (url.pathname === "/api/preview/default" && req.method === "GET") {
     const profile = await getProfile("default");
-    const probeItems = await probeItemsForProfile(profile);
-    const built = await buildProfileNodes(profile, { ipSourceBase: IP_SOURCE_BASE, probeItems });
+    const built = await buildProfileNodes(profile, { ipSourceBase: IP_SOURCE_BASE });
     return json(res, 200, {
       ok: true,
-      probeCacheUsed: Boolean(probeItems),
       counts: {
         baseNodes: built.baseNodes.length,
         preferredEndpoints: built.endpoints.length,
@@ -218,24 +172,6 @@ async function handleApi(req, res, url) {
     });
   }
 
-  if (url.pathname === "/api/probe/status" && req.method === "GET") {
-    const cache = await readProbeCache();
-    return json(res, 200, { ok: true, probe: probeStatus(cache) });
-  }
-
-  if (url.pathname === "/api/probe/run" && req.method === "POST") {
-    if (!IP_PROBE_CONFIG.enabled) {
-      return json(res, 400, { ok: false, error: "IP probe is disabled" });
-    }
-    const profile = await getProfile("default");
-    const cache = await runIpProbe(profile, {
-      ipSourceBase: IP_SOURCE_BASE,
-      config: IP_PROBE_CONFIG
-    });
-    await writeProbeCache(cache);
-    return json(res, 200, { ok: true, probe: probeStatus(cache) });
-  }
-
   return json(res, 404, { ok: false, error: "not found" });
 }
 
@@ -245,8 +181,7 @@ async function handleSub(req, res, url) {
   const profile = await getProfile(id);
   if (!profile) return send(res, 404, "profile not found");
 
-  const probeItems = await probeItemsForProfile(profile);
-  const { nodes } = await buildProfileNodes(profile, { ipSourceBase: IP_SOURCE_BASE, probeItems });
+  const { nodes } = await buildProfileNodes(profile, { ipSourceBase: IP_SOURCE_BASE });
   const target = (url.searchParams.get("target") || "auto").toLowerCase();
   const requestUrl = `${url.origin}${url.pathname}?target=${encodeURIComponent(target)}`;
   const output = renderSubscription(nodes, target, requestUrl);

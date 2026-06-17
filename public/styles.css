@@ -207,26 +207,6 @@ label {
   min-height: 24px;
 }
 
-.probe-card {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 10px;
-  align-items: center;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--field);
-  padding: 12px;
-}
-
-.probe-card strong {
-  display: block;
-  margin-bottom: 4px;
-}
-
-.probe-card p {
-  font-size: 13px;
-}
-
 textarea,
 input,
 select {
@@ -377,10 +357,6 @@ dialog::backdrop {
   }
 
   .link-row {
-    grid-template-columns: 1fr;
-  }
-
-  .probe-card {
     grid-template-columns: 1fr;
   }
 
