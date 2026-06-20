@@ -74,6 +74,8 @@ HOST=127.0.0.1
 PORT=5176
 IP_SOURCE_BASE=http://127.0.0.1:5173
 DATA_DIR=./data
+SITE_USERNAME=admin
+SITE_PASSWORD=
 ADMIN_TOKEN=
 SUB_ACCESS_TOKEN=
 ```
@@ -84,6 +86,8 @@ SUB_ACCESS_TOKEN=
 - `PORT`：订阅生成器端口，默认 `5176`。
 - `IP_SOURCE_BASE`：优选 IP 源服务地址，例如同机部署时为 `http://127.0.0.1:5173`。
 - `DATA_DIR`：配置存储目录，默认 `./data`。
+- `SITE_USERNAME`：网页访问用户名，默认 `admin`。
+- `SITE_PASSWORD`：网页访问密码。设置后，直接打开生成器网页会出现浏览器密码框；不会影响客户端拉取订阅。
 - `ADMIN_TOKEN`：管理接口访问令牌。强烈建议设置，用于保护自建节点配置。
 - `SUB_ACCESS_TOKEN`：可选访问令牌。留空表示订阅链接无需 token。
 
@@ -152,6 +156,8 @@ HOST=127.0.0.1
 PORT=5176
 IP_SOURCE_BASE=http://127.0.0.1:5173
 DATA_DIR=./data
+SITE_USERNAME=admin
+SITE_PASSWORD=换成高强度密码
 ADMIN_TOKEN=换成一串随机字符
 SUB_ACCESS_TOKEN=
 ```

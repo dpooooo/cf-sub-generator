@@ -1,4 +1,5 @@
 import http from "node:http";
+import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -22,6 +23,8 @@ const PUBLIC_DIR = path.join(__dirname, "public");
 const IP_SOURCE_BASE = process.env.IP_SOURCE_BASE || "http://127.0.0.1:5173";
 const SUB_ACCESS_TOKEN = process.env.SUB_ACCESS_TOKEN || "";
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || "";
+const SITE_USERNAME = process.env.SITE_USERNAME || "admin";
+const SITE_PASSWORD = process.env.SITE_PASSWORD || "";
 
 const mimeTypes = {
   ".html": "text/html; charset=utf-8",
@@ -109,6 +112,31 @@ function validateAdmin(req, url) {
   if (!ADMIN_TOKEN) return true;
   const headerToken = req.headers["x-admin-token"];
   return headerToken === ADMIN_TOKEN || url.searchParams.get("admin_token") === ADMIN_TOKEN;
+}
+
+function validateSiteAccess(req) {
+  if (!SITE_PASSWORD) return true;
+  const authorization = req.headers.authorization || "";
+  if (!authorization.startsWith("Basic ")) return false;
+
+  try {
+    const expected = Buffer.from(`${SITE_USERNAME}:${SITE_PASSWORD}`, "utf8");
+    const provided = Buffer.from(authorization.slice(6), "base64");
+    return provided.length === expected.length && crypto.timingSafeEqual(provided, expected);
+  } catch {
+    return false;
+  }
+}
+
+function requireSiteAccess(req, res) {
+  if (validateSiteAccess(req)) return true;
+  res.writeHead(401, {
+    "Content-Type": "text/plain; charset=utf-8",
+    "Cache-Control": "no-store",
+    "WWW-Authenticate": 'Basic realm="CF Subscription Generator", charset="UTF-8"'
+  });
+  res.end("Authentication required");
+  return false;
 }
 
 function requireAdmin(req, res, url) {
@@ -208,6 +236,7 @@ async function route(req, res) {
     if (req.method === "OPTIONS") return send(res, 204, "");
     if (url.pathname.startsWith("/api/")) return await handleApi(req, res, url);
     if (req.method === "GET" && url.pathname.startsWith("/sub/")) return await handleSub(req, res, url);
+    if (!requireSiteAccess(req, res)) return;
     return await serveStatic(res, url);
   } catch (error) {
     json(res, 500, { ok: false, error: error.message });
