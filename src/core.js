@@ -22,6 +22,7 @@ function parseVmess(link) {
   const raw = link.slice("vmess://".length).trim();
   const obj = JSON.parse(b64DecodeUtf8(raw));
   return {
+    rawConfig: obj,
     type: "vmess",
     name: obj.ps || "vmess",
     server: obj.add,
@@ -43,6 +44,7 @@ function parseUrlNode(link, type) {
   const url = new URL(link);
   const params = url.searchParams;
   return {
+    queryParams: [...params.entries()],
     type,
     name: decodeURIComponent(url.hash.replace(/^#/, "")) || type,
     server: url.hostname,
@@ -310,6 +312,7 @@ export async function buildProfileNodes(profile, options = {}) {
 
 function encodeVmess(node) {
   const obj = {
+    ...(node.rawConfig || {}),
     v: "2",
     ps: node.name,
     add: node.server,
@@ -338,6 +341,9 @@ function hostForUrl(host) {
 function encodeUrlNode(node) {
   const auth = node.type === "trojan" ? node.password : node.uuid;
   const url = new URL(`${node.type}://${encodeURIComponent(auth)}@${hostForUrl(node.server)}:${node.port}`);
+  for (const [key, value] of node.queryParams || []) {
+    url.searchParams.append(key, value);
+  }
   if (node.network) url.searchParams.set("type", node.network);
   if (node.type === "vless") url.searchParams.set("encryption", "none");
   if (node.tls) url.searchParams.set("security", "tls");

@@ -34,6 +34,8 @@ cf-sub-generator/
 
 `auto`、`v2rayn`、`shadowrocket` 当前输出通用 Base64 节点订阅；`clash` 输出 YAML；`surge` 输出 Surge Profile。
 
+VLESS、Trojan 和 VMess 节点在替换优选 IP 时会保留原始传输参数。XHTTP 的 `mode`、`extra` 以及其他扩展查询参数会原样写入通用订阅，避免重新生成后丢失 XHTTP 配置。
+
 ## 多订阅配置
 
 管理页面支持新建、切换、重命名和删除 Profile。每个 Profile 独立保存自建节点、优选 IP 来源、优选 IP 数量和节点名称前缀，并生成自己的五类固定订阅链接。
