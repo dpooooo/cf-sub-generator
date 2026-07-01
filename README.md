@@ -34,6 +34,20 @@ cf-sub-generator/
 
 `auto`、`v2rayn`、`shadowrocket` 当前输出通用 Base64 节点订阅；`clash` 输出 YAML；`surge` 输出 Surge Profile。
 
+## 多订阅配置
+
+管理页面支持新建、切换、重命名和删除 Profile。每个 Profile 独立保存自建节点、优选 IP 来源、优选 IP 数量和节点名称前缀，并生成自己的五类固定订阅链接。
+
+```text
+/sub/default?target=auto
+/sub/server2?target=auto
+```
+
+- `default` 始终保留且不能删除，已有 `/sub/default` 订阅地址不受影响。
+- Profile ID 是固定订阅地址的一部分，创建后保持不变。
+- 重命名只改变页面显示名称，不会改变订阅地址。
+- 删除非默认 Profile 后，该 Profile 对应的订阅地址会失效。
+
 ## 优选 IP 选取逻辑
 
 自动模式下，订阅生成器不会简单使用源列表前 N 个 IP，而是按线路均衡选取：

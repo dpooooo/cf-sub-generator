@@ -1,6 +1,21 @@
 const els = {
   adminToken: document.querySelector("#adminToken"),
   rememberAdminToken: document.querySelector("#rememberAdminToken"),
+  profileSelect: document.querySelector("#profileSelect"),
+  currentProfileName: document.querySelector("#currentProfileName"),
+  currentProfileId: document.querySelector("#currentProfileId"),
+  createProfileButton: document.querySelector("#createProfileButton"),
+  renameProfileButton: document.querySelector("#renameProfileButton"),
+  deleteProfileButton: document.querySelector("#deleteProfileButton"),
+  profileDialog: document.querySelector("#profileDialog"),
+  profileForm: document.querySelector("#profileForm"),
+  profileDialogTitle: document.querySelector("#profileDialogTitle"),
+  profileDialogHint: document.querySelector("#profileDialogHint"),
+  profileIdField: document.querySelector("#profileIdField"),
+  profileIdInput: document.querySelector("#profileIdInput"),
+  profileNameInput: document.querySelector("#profileNameInput"),
+  confirmProfileButton: document.querySelector("#confirmProfileButton"),
+  cancelProfileButton: document.querySelector("#cancelProfileButton"),
   nodeLinks: document.querySelector("#nodeLinks"),
   preferredMode: document.querySelector("#preferredMode"),
   preferredIpSource: document.querySelector("#preferredIpSource"),
@@ -27,6 +42,10 @@ const linkTargets = [
   ["shadowrocketLink", "shadowrocket"],
   ["surgeLink", "surge"]
 ];
+
+let profiles = [];
+let currentProfileId = localStorage.getItem("cfSubProfileId") || "default";
+let profileDialogMode = "create";
 
 function showToast(message) {
   els.toast.textContent = message;
@@ -71,9 +90,24 @@ function fillForm(profile) {
 }
 
 function subscriptionUrl(target) {
-  const url = new URL("/sub/default", window.location.origin);
+  const url = new URL(`/sub/${encodeURIComponent(currentProfileId)}`, window.location.origin);
   url.searchParams.set("target", target);
   return url.toString();
+}
+
+function updateCurrentProfileHeader() {
+  const current = profiles.find((profile) => profile.id === currentProfileId);
+  els.currentProfileName.textContent = current?.name || currentProfileId;
+  els.currentProfileId.textContent = `/sub/${currentProfileId}`;
+  els.deleteProfileButton.disabled = currentProfileId === "default";
+}
+
+function renderProfileOptions() {
+  els.profileSelect.innerHTML = profiles
+    .map((profile) => `<option value="${escapeHtml(profile.id)}">${escapeHtml(profile.name)} (${escapeHtml(profile.id)})</option>`)
+    .join("");
+  els.profileSelect.value = currentProfileId;
+  updateCurrentProfileHeader();
 }
 
 function fillSubscriptionLinks() {
@@ -90,13 +124,32 @@ async function parseJsonResponse(response) {
   return data;
 }
 
-async function loadProfile() {
-  const response = await fetch("/api/profile/default", {
+async function loadProfiles(preferredId = currentProfileId) {
+  const response = await fetch("/api/profiles", { headers: adminHeaders() });
+  const data = await parseJsonResponse(response);
+  profiles = data.profiles || [];
+  currentProfileId = profiles.some((profile) => profile.id === preferredId) ? preferredId : "default";
+  localStorage.setItem("cfSubProfileId", currentProfileId);
+  renderProfileOptions();
+}
+
+async function loadProfile(id = currentProfileId) {
+  const response = await fetch(`/api/profile/${encodeURIComponent(id)}`, {
     headers: adminHeaders()
   });
   const data = await parseJsonResponse(response);
-  if (data.ok) fillForm(data.profile);
+  currentProfileId = data.profile.id;
+  localStorage.setItem("cfSubProfileId", currentProfileId);
+  fillForm(data.profile);
   fillSubscriptionLinks();
+  updateCurrentProfileHeader();
+  els.previewBody.innerHTML = "";
+  els.statusText.textContent = "等待配置";
+}
+
+async function refreshProfiles(preferredId = currentProfileId) {
+  await loadProfiles(preferredId);
+  await loadProfile(currentProfileId);
 }
 
 async function saveProfile({ quiet = false } = {}) {
@@ -104,7 +157,7 @@ async function saveProfile({ quiet = false } = {}) {
   els.saveButton.disabled = true;
   if (els.generateButton) els.generateButton.disabled = true;
   try {
-    const response = await fetch("/api/profile/default", {
+    const response = await fetch(`/api/profile/${encodeURIComponent(currentProfileId)}`, {
       method: "POST",
       headers: adminHeaders({ "content-type": "application/json" }),
       body: JSON.stringify(profileFromForm())
@@ -119,6 +172,74 @@ async function saveProfile({ quiet = false } = {}) {
   } finally {
     els.saveButton.disabled = false;
     if (els.generateButton) els.generateButton.disabled = false;
+  }
+}
+
+function openProfileDialog(mode) {
+  profileDialogMode = mode;
+  const current = profiles.find((profile) => profile.id === currentProfileId);
+  const creating = mode === "create";
+  els.profileDialogTitle.textContent = creating ? "新建订阅配置" : "重命名订阅配置";
+  els.profileDialogHint.textContent = creating
+    ? "新配置拥有独立节点、优选 IP 设置和固定订阅地址。"
+    : "只修改显示名称，不会改变 Profile ID 和订阅地址。";
+  els.profileIdField.hidden = !creating;
+  els.profileIdInput.required = creating;
+  els.profileIdInput.value = "";
+  els.profileNameInput.value = creating ? "" : current?.name || currentProfileId;
+  els.confirmProfileButton.textContent = creating ? "创建配置" : "保存名称";
+  els.profileDialog.showModal();
+  window.setTimeout(() => (creating ? els.profileIdInput : els.profileNameInput).focus(), 0);
+}
+
+async function submitProfileDialog(event) {
+  event.preventDefault();
+  els.confirmProfileButton.disabled = true;
+  try {
+    if (profileDialogMode === "create") {
+      const id = els.profileIdInput.value.trim().toLowerCase();
+      const response = await fetch("/api/profiles", {
+        method: "POST",
+        headers: adminHeaders({ "content-type": "application/json" }),
+        body: JSON.stringify({ id, name: els.profileNameInput.value.trim() })
+      });
+      await parseJsonResponse(response);
+      els.profileDialog.close();
+      await refreshProfiles(id);
+      showToast("新配置已创建");
+    } else {
+      const response = await fetch(`/api/profile/${encodeURIComponent(currentProfileId)}`, {
+        method: "PATCH",
+        headers: adminHeaders({ "content-type": "application/json" }),
+        body: JSON.stringify({ name: els.profileNameInput.value.trim() })
+      });
+      await parseJsonResponse(response);
+      els.profileDialog.close();
+      await loadProfiles(currentProfileId);
+      showToast("配置名称已更新");
+    }
+  } catch (error) {
+    showToast(error.message || "操作失败");
+  } finally {
+    els.confirmProfileButton.disabled = false;
+  }
+}
+
+async function deleteCurrentProfile() {
+  if (currentProfileId === "default") return;
+  const current = profiles.find((profile) => profile.id === currentProfileId);
+  if (!window.confirm(`确定删除“${current?.name || currentProfileId}”吗？该订阅地址将立即失效。`)) return;
+
+  try {
+    const response = await fetch(`/api/profile/${encodeURIComponent(currentProfileId)}`, {
+      method: "DELETE",
+      headers: adminHeaders()
+    });
+    await parseJsonResponse(response);
+    await refreshProfiles("default");
+    showToast("配置已删除，已切换到默认订阅");
+  } catch (error) {
+    showToast(error.message || "删除失败");
   }
 }
 
@@ -143,7 +264,7 @@ async function preview() {
   els.previewButton.disabled = true;
   els.statusText.textContent = "生成预览中";
   try {
-    const response = await fetch("/api/preview/default", {
+    const response = await fetch(`/api/preview/${encodeURIComponent(currentProfileId)}`, {
       headers: adminHeaders()
     });
     const data = await parseJsonResponse(response);
@@ -191,9 +312,22 @@ els.saveButton.addEventListener("click", () => saveProfile());
 els.generateButton.addEventListener("click", () => saveProfile());
 els.previewButton.addEventListener("click", preview);
 els.closeQrButton.addEventListener("click", () => els.qrDialog.close());
+els.createProfileButton.addEventListener("click", () => openProfileDialog("create"));
+els.renameProfileButton.addEventListener("click", () => openProfileDialog("rename"));
+els.deleteProfileButton.addEventListener("click", deleteCurrentProfile);
+els.cancelProfileButton.addEventListener("click", () => els.profileDialog.close());
+els.profileForm.addEventListener("submit", submitProfileDialog);
+els.profileSelect.addEventListener("change", async () => {
+  currentProfileId = els.profileSelect.value;
+  try {
+    await loadProfile(currentProfileId);
+  } catch (error) {
+    showToast(error.message || "配置加载失败");
+  }
+});
 els.adminToken.addEventListener("change", () => {
   rememberTokenIfNeeded();
-  loadProfile().catch((error) => showToast(error.message || "配置加载失败"));
+  refreshProfiles().catch((error) => showToast(error.message || "配置加载失败"));
 });
 els.rememberAdminToken.addEventListener("change", rememberTokenIfNeeded);
 
@@ -206,4 +340,4 @@ document.querySelectorAll(".qr-link").forEach((button) => {
 });
 
 fillSubscriptionLinks();
-loadProfile().catch((error) => showToast(error.message || "配置加载失败"));
+refreshProfiles().catch((error) => showToast(error.message || "配置加载失败"));

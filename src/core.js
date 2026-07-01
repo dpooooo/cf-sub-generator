@@ -1,5 +1,6 @@
 export const defaultProfile = {
   id: "default",
+  name: "默认订阅",
   nodeLinks: "",
   preferredMode: "auto",
   preferredIps: "",

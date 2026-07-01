@@ -56,7 +56,7 @@ function send(res, status, body, type = "text/plain; charset=utf-8") {
     "Content-Type": type,
     "Cache-Control": "no-store",
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Methods": "GET,POST,PATCH,DELETE,OPTIONS",
     "Access-Control-Allow-Headers": "content-type,x-admin-token"
   });
   res.end(body);
@@ -70,9 +70,25 @@ async function readProfiles() {
   try {
     const raw = await fs.readFile(PROFILE_FILE, "utf8");
     const parsed = JSON.parse(raw);
-    return { default: { ...defaultProfile, ...(parsed.default || {}) } };
+    const profiles = {};
+    for (const [id, profile] of Object.entries(parsed || {})) {
+      if (!isValidProfileId(id) || !profile || typeof profile !== "object") continue;
+      profiles[id] = {
+        ...defaultProfile,
+        ...profile,
+        id,
+        name: String(profile.name || (id === "default" ? "默认订阅" : id))
+      };
+    }
+    profiles.default = {
+      ...defaultProfile,
+      ...(profiles.default || {}),
+      id: "default",
+      name: String(profiles.default?.name || "默认订阅")
+    };
+    return profiles;
   } catch {
-    return { default: defaultProfile };
+    return { default: { ...defaultProfile, name: "默认订阅" } };
   }
 }
 
@@ -86,11 +102,60 @@ async function getProfile(id) {
   return profiles[id] || (id === "default" ? defaultProfile : null);
 }
 
-async function saveProfile(id, body) {
+function isValidProfileId(id) {
+  return /^[a-z0-9][a-z0-9_-]{0,39}$/.test(String(id || ""));
+}
+
+function profileIdFromMatch(match) {
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return "";
+  }
+}
+
+function profileSummary(profile) {
+  return {
+    id: profile.id,
+    name: profile.name || profile.id,
+    nodeCount: String(profile.nodeLinks || "").split(/\r?\n/).filter((line) => line.trim()).length,
+    preferredIpSource: profile.preferredIpSource,
+    preferredIpLimit: profile.preferredIpLimit
+  };
+}
+
+async function createProfile(body) {
+  const id = String(body.id || "").trim().toLowerCase();
+  if (!isValidProfileId(id)) {
+    const error = new Error("Profile ID 只能使用小写字母、数字、横线和下划线，最长 40 位");
+    error.statusCode = 400;
+    throw error;
+  }
+
   const profiles = await readProfiles();
+  if (profiles[id]) {
+    const error = new Error("Profile ID 已存在");
+    error.statusCode = 409;
+    throw error;
+  }
+
   profiles[id] = {
     ...defaultProfile,
     id,
+    name: String(body.name || id).trim() || id
+  };
+  await writeProfiles(profiles);
+  return profiles[id];
+}
+
+async function saveProfile(id, body) {
+  const profiles = await readProfiles();
+  const current = profiles[id];
+  if (!current) return null;
+  profiles[id] = {
+    ...defaultProfile,
+    id,
+    name: current.name || id,
     nodeLinks: String(body.nodeLinks || ""),
     preferredMode: body.preferredMode === "manual" ? "manual" : "auto",
     preferredIps: String(body.preferredIps || ""),
@@ -101,6 +166,33 @@ async function saveProfile(id, body) {
   };
   await writeProfiles(profiles);
   return profiles[id];
+}
+
+async function renameProfile(id, body) {
+  const profiles = await readProfiles();
+  if (!profiles[id]) return null;
+  const name = String(body.name || "").trim();
+  if (!name) {
+    const error = new Error("配置名称不能为空");
+    error.statusCode = 400;
+    throw error;
+  }
+  profiles[id] = { ...profiles[id], name };
+  await writeProfiles(profiles);
+  return profiles[id];
+}
+
+async function deleteProfile(id) {
+  if (id === "default") {
+    const error = new Error("default 配置不能删除");
+    error.statusCode = 400;
+    throw error;
+  }
+  const profiles = await readProfiles();
+  if (!profiles[id]) return false;
+  delete profiles[id];
+  await writeProfiles(profiles);
+  return true;
 }
 
 function validateToken(url) {
@@ -158,17 +250,43 @@ async function readRequestJson(req) {
 async function handleApi(req, res, url) {
   if (!requireAdmin(req, res, url)) return;
 
+  if (url.pathname === "/api/profiles" && req.method === "GET") {
+    const profiles = await readProfiles();
+    const items = Object.values(profiles)
+      .map(profileSummary)
+      .sort((a, b) => (a.id === "default" ? -1 : b.id === "default" ? 1 : a.name.localeCompare(b.name, "zh-CN")));
+    return json(res, 200, { ok: true, profiles: items });
+  }
+
+  if (url.pathname === "/api/profiles" && req.method === "POST") {
+    const profile = await createProfile(await readRequestJson(req));
+    return json(res, 201, { ok: true, profile });
+  }
+
   const profileMatch = url.pathname.match(/^\/api\/profile\/([^/]+)$/);
   if (profileMatch && req.method === "GET") {
-    const profile = await getProfile(profileMatch[1]);
+    const profile = await getProfile(profileIdFromMatch(profileMatch));
     if (!profile) return json(res, 404, { ok: false, error: "profile not found" });
     return json(res, 200, { ok: true, profile });
   }
 
   if (profileMatch && req.method === "POST") {
     const body = await readRequestJson(req);
-    const profile = await saveProfile(profileMatch[1], body);
+    const profile = await saveProfile(profileIdFromMatch(profileMatch), body);
+    if (!profile) return json(res, 404, { ok: false, error: "profile not found" });
     return json(res, 200, { ok: true, profile });
+  }
+
+  if (profileMatch && req.method === "PATCH") {
+    const profile = await renameProfile(profileIdFromMatch(profileMatch), await readRequestJson(req));
+    if (!profile) return json(res, 404, { ok: false, error: "profile not found" });
+    return json(res, 200, { ok: true, profile });
+  }
+
+  if (profileMatch && req.method === "DELETE") {
+    const deleted = await deleteProfile(profileIdFromMatch(profileMatch));
+    if (!deleted) return json(res, 404, { ok: false, error: "profile not found" });
+    return json(res, 200, { ok: true });
   }
 
   if (url.pathname === "/api/preferred-ips" && req.method === "GET") {
@@ -179,8 +297,10 @@ async function handleApi(req, res, url) {
     return json(res, 200, { ok: true, source, endpoints: endpoints.map(endpointText) });
   }
 
-  if (url.pathname === "/api/preview/default" && req.method === "GET") {
-    const profile = await getProfile("default");
+  const previewMatch = url.pathname.match(/^\/api\/preview\/([^/]+)$/);
+  if (previewMatch && req.method === "GET") {
+    const profile = await getProfile(profileIdFromMatch(previewMatch));
+    if (!profile) return json(res, 404, { ok: false, error: "profile not found" });
     const built = await buildProfileNodes(profile, { ipSourceBase: IP_SOURCE_BASE });
     return json(res, 200, {
       ok: true,
@@ -239,7 +359,7 @@ async function route(req, res) {
     if (!requireSiteAccess(req, res)) return;
     return await serveStatic(res, url);
   } catch (error) {
-    json(res, 500, { ok: false, error: error.message });
+    json(res, error.statusCode || 500, { ok: false, error: error.message });
   }
 }
 

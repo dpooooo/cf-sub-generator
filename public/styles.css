@@ -187,6 +187,62 @@ button:disabled {
   border-bottom: 1px solid var(--line);
 }
 
+/* ── Profile switcher ── */
+.profile-panel {
+  padding-block: 18px;
+}
+
+.profile-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.profile-heading > div:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.profile-label {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+#currentProfileName {
+  font-size: 18px;
+}
+
+#currentProfileId {
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 12px;
+}
+
+.profile-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.profile-controls select {
+  width: min(320px, 34vw);
+}
+
+.danger-button:not(:disabled) {
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+
+.danger-button:not(:disabled):hover {
+  border-color: #ef4444;
+  background: #fef2f2;
+  color: #991b1b;
+}
+
 /* ── Subscription cards ── */
 .sub-grid {
   display: grid;
@@ -402,6 +458,42 @@ dialog {
   padding: 20px;
 }
 
+#profileDialog form {
+  display: grid;
+  gap: 16px;
+}
+
+.dialog-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.dialog-head strong {
+  font-size: 18px;
+}
+
+.dialog-head p,
+#profileDialog small {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 4px;
+}
+
+[hidden] {
+  display: none !important;
+}
+
 dialog::backdrop {
   background: rgba(15, 23, 42, 0.45);
   backdrop-filter: blur(3px);
@@ -465,5 +557,15 @@ dialog::backdrop {
   .actions {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .profile-heading,
+  .profile-controls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .profile-controls select {
+    width: 100%;
   }
 }

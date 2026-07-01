@@ -16,6 +16,22 @@
         </div>
       </section>
 
+      <section class="panel profile-panel">
+        <div class="profile-heading">
+          <div>
+            <p class="profile-label">当前订阅配置</p>
+            <strong id="currentProfileName">默认订阅</strong>
+            <span id="currentProfileId">/sub/default</span>
+          </div>
+          <div class="profile-controls">
+            <select id="profileSelect" aria-label="切换订阅配置"></select>
+            <button id="createProfileButton" type="button">新建</button>
+            <button id="renameProfileButton" type="button">重命名</button>
+            <button id="deleteProfileButton" class="danger-button" type="button" disabled>删除</button>
+          </div>
+        </div>
+      </section>
+
       <section class="panel">
         <div class="section-title">
           <div>
@@ -201,6 +217,30 @@
       </div>
       <img id="qrImage" alt="订阅二维码" />
       <input id="qrText" readonly />
+    </dialog>
+
+    <dialog id="profileDialog">
+      <form id="profileForm" method="dialog">
+        <div class="dialog-head">
+          <div>
+            <strong id="profileDialogTitle">新建订阅配置</strong>
+            <p id="profileDialogHint">每个配置拥有独立节点和优选 IP 设置。</p>
+          </div>
+          <button id="cancelProfileButton" type="button">取消</button>
+        </div>
+        <label id="profileIdField">
+          <span>Profile ID</span>
+          <input id="profileIdInput" type="text" maxlength="40" pattern="[a-z0-9][a-z0-9_-]{0,39}" placeholder="例如 server2" autocomplete="off" required />
+          <small>用于固定订阅地址，创建后不会随名称改变。</small>
+        </label>
+        <label>
+          <span>配置名称</span>
+          <input id="profileNameInput" type="text" maxlength="60" placeholder="例如 香港服务器" autocomplete="off" required />
+        </label>
+        <div class="dialog-actions">
+          <button id="confirmProfileButton" type="submit">创建配置</button>
+        </div>
+      </form>
     </dialog>
 
     <div id="toast" class="toast"></div>
